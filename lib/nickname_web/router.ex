@@ -5,8 +5,8 @@ defmodule NicknameWeb.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_flash
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    #plug :put_secure_browser_headers
+    #plug :protect_from_forgery
   end
 
   pipeline :api do
@@ -17,10 +17,8 @@ defmodule NicknameWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :index
+
+    resources "/nickname", NicknameController, only: [:show, :create]
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", NicknameWeb do
-  #   pipe_through :api
-  # end
 end
