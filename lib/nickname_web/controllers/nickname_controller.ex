@@ -14,19 +14,31 @@ defmodule NicknameWeb.NicknameController do
   def show(conn, %{"id" => nickname}) do
     res = Agent.get(__MODULE__, fn map -> Map.fetch(map, nickname) end)
     case res do
-      {:ok, tup} -> 
-        update_and_return(conn, nickname, tup) 
+      {:ok, tup} -> # key found so nickname has been defined
+        update_times(nickname, tup)
+        {url, _} = tup
+        redirect(conn, external: url) 
       :error -> 
         json(conn, %{"error" => "not found"})
     end
   end
 
-  def update_and_return(conn, nickname, tup) do
-    update_visitis = fn {url, visits} -> {url, visits + 1} end
-    {url, times_visitied} = updated = update_visitis.(tup)
+  def stats(conn, %{"id" => nickname}) do
+    res = Agent.get(__MODULE__, fn map -> Map.fetch(map, nickname) end)
+    case res do
+      {:ok, {url, times_visitied}} -> 
+        json(conn, %{"nickname" => url, "times" => times_visitied})
+      :error -> 
+        json(conn, %{"error" => "not found"})
+    end
+  end 
+
+  def update_times(nickname, tup) do
+    update_visits = fn {url, visits} -> {url, visits + 1} end
+    updated = update_visits.(tup)
 
     Agent.update(__MODULE__, fn map -> Map.put(map, nickname, updated) end)
-    json(conn, %{"nickname" => url, "times" => times_visitied})
+    nil
   end
 
 end
