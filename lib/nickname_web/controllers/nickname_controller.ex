@@ -1,43 +1,47 @@
 defmodule NicknameWeb.NicknameController do
   use NicknameWeb, :controller
   use Agent
+  alias Nickname.{Repo, Nicknames}
+  import Ecto.Query
 
   def start_link(initial_value) do
     Agent.start_link(fn -> initial_value end, name: __MODULE__)
   end
 
   def create(conn, %{"url" => url, "nickname" => nickname} = params) do
-    Agent.update(__MODULE__, fn map -> Map.put_new(map, nickname, {url, 0}) end)
+    Repo.insert(%Nicknames{url: url, nickname: nickname, times: 0})
     json(conn, params)
   end
 
-  def show(conn, %{"id" => nickname}) do
-    res = Agent.get(__MODULE__, fn map -> Map.fetch(map, nickname) end)
-    case res do
-      {:ok, tup} -> # key found so nickname has been defined
-        update_times(nickname, tup)
-        {url, _} = tup
-        redirect(conn, external: url) 
-      :error -> 
+  defp get_binding(nickname) do
+    Repo.one(from n in Nicknames, where: n.nickname == ^nickname)
+  end
+
+  def show(conn, %{"id" => foo}) do
+    binding = get_binding(foo)
+    case binding do
+      nil -> 
         json(conn, %{"error" => "not found"})
+      _ -> 
+        update_times(binding)
+        redirect(conn, external: binding.url) 
     end
   end
 
   def stats(conn, %{"id" => nickname}) do
-    res = Agent.get(__MODULE__, fn map -> Map.fetch(map, nickname) end)
-    case res do
-      {:ok, {url, times_visitied}} -> 
-        json(conn, %{"nickname" => url, "times" => times_visitied})
-      :error -> 
+    binding = get_binding(nickname)
+    case binding do
+      nil -> 
         json(conn, %{"error" => "not found"})
+      _ -> 
+        json(conn, %{"nickname" => binding.url, "times" => binding.times})
     end
   end 
 
-  def update_times(nickname, tup) do
-    update_visits = fn {url, visits} -> {url, visits + 1} end
-    updated = update_visits.(tup)
-
-    Agent.update(__MODULE__, fn map -> Map.put(map, nickname, updated) end)
+  def update_times(nickname) do
+    nickname 
+    |> Nicknames.changeset(%{times: nickname.times + 1})
+    |> Repo.update
     nil
   end
 
